@@ -120,6 +120,6 @@ df_team_rankings.info()
 
 ''' 
 -Don't worry about looping through FBS conferences as this significantly slows down the script-
--Start saving the data that doesn't have any issues as files so we can stop calling the API-
+-Start saving the data that doesn't hi have any issues as files so we can stop calling the API-
 '''
 
