@@ -50,7 +50,7 @@ class Data:
             start_time = time.time()
             result = func(*args, **kwargs)
             end_time = time.time()
-            print(f"API call {list(kwargs.items())[0]} executed in {end_time - start_time:.4f} seconds")
+            print(f"\nAPI call {kwargs.get('endpoint')} executed in {end_time - start_time:.4f} seconds\n")
             return result
         return wrapper  
     
@@ -77,7 +77,7 @@ class Data:
     @timing_decorator
     def request(self, endpoint: str, params: dict = None) -> any:
         if not endpoint:
-            raise TypeError("request() requires 'endpoint' argument")
+            raise TypeError("API requires 'endpoint' argument")
         if not isinstance(endpoint, str):
             raise TypeError("'endpoint' argument must be of type: str")
         if params:
@@ -103,10 +103,10 @@ class Data:
         elif isinstance(self.json_data, list):
             row = (self.json_data)[0]
             problem_data = {key: row[key] for key in row.keys() if isinstance(row[key], (dict, list, tuple, set))}
-            print(f"API Request Success, but not able to convert into DataFrame. Data is not flat. \n\n {problem_data}")
+            print(f"\n\nAPI Request Success, but not able to convert into DataFrame. Data is not flat.\n\n {problem_data}\n\n")
         elif isinstance(self.json_data, dict):
             problem_data = {key: (self.json_data)[key] for key in self.json_data.keys() if isinstance((self.json_data)[key], (dict, list, tuple, set))}
-            print(f"API Request Success, but not able to convert into DataFrame. Data is not flat. \n\n {problem_data}")
+            print(f"\n\nAPI Request Success, but not able to convert into DataFrame. Data is not flat.\n\n {problem_data}\n\n")
         
         
         return self.json_data
@@ -124,3 +124,5 @@ class Data:
                 raise NotImplementedError(f"Error reading CSV file {file_path}: {e}")
         else:
             raise FileNotFoundError(f"{file_path} does not exist")
+    
+ 
