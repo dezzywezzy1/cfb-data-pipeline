@@ -3,3 +3,5 @@
 *.csv
 .vscode/
 __pycache__/
+*.json
+ingestion/
