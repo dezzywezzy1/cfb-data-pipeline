@@ -5,6 +5,11 @@ from dotenv import find_dotenv, load_dotenv
 import time
 from pathlib import Path
 import json
+from google.cloud import storage, secretmanager
+
+BUCKET_NAME = "cfb-data-bucket-jv"
+SECRET_NAME = "cfb-data-api-key"
+PROJECT_ID = "cfb-pipeline-project"
 
 
 class Data:
@@ -19,11 +24,6 @@ class Data:
         Data.instances.append(self)
         path = find_dotenv('.env')
         load_dotenv(path)
-        self.api_key= os.environ.get("CFB_API_KEY")
-        self.headers = {
-            'Authorization': "Bearer " +  self.api_key,
-            'Accept': 'application/json'
-        }
      
         
     @classmethod
@@ -52,35 +52,29 @@ class Data:
             return result
         return wrapper  
     
-    
-        
-    def save(self, file_path: str | Path):
-        if not file_path:
-            if not self.file_path:
-                raise AttributeError("No file path found. Enter file_path argument to save.")
-            file_path= self.file_path
             
-        
-        if self.data_frame is None:
-            if self.json_data is None:
-                raise ValueError("There is no data to save.")
-            else:
-                file_path = Path(file_path.replace(".csv", ".json"))
-                with open(file_path, "w") as outf:
-                    outf = json.dump(self.json_data, fp= outf)
-                    self.file_path= file_path
-                print("\nCould not save as .csv, saved as .json instead")
-        else:
-            try:
-                self.data_frame.to_csv(file_path)
-                self.file_path = file_path
-            except Exception as e:
-                raise IOError(f"Error saving DataFrame to CSV or JSON: {e}")
-        
-            
+    def _get_api_key(self):
+        client= secretmanager.SecretManagerServiceClient()
+        secret_path= f'projects/{PROJECT_ID}/secrets/{SECRET_NAME}/versions/1'
+        response= client.access_secret_version(request={"name": secret_path})
+        return response.payload.data.decode("UTF-8")
     
+    def _upload_data(self):
+        client= storage.Client()
+        bucket= client.bucket(BUCKET_NAME)
+        blob= bucket.blob(f"raw_data/{self.name}.json")
+        json_string= json.dumps(self.json_data, indent=2)
+        blob.upload_from_string(json_string, content_type='application/json')
+        print(f"JSON data uploaded to gs://{BUCKET_NAME}/raw_data/{self.name}.json")
+        
     @timing_decorator
     def request(self, endpoint: str, params: dict = None) -> any:
+        api_key= self._get_api_key()
+        headers = {
+            'Authorization': "Bearer " +  api_key,
+            'Accept': 'application/json'
+        }
+        
         if not endpoint:
             raise TypeError("API requires 'endpoint' argument")
         if not isinstance(endpoint, str):
@@ -90,17 +84,19 @@ class Data:
                 raise TypeError("'params' argument must be of type: dict")
             else:
                 try:
-                    response = requests.get(f"{self.api_url}{endpoint}", params=params, headers=self.headers)
+                    response = requests.get(f"{self.api_url}{endpoint}", params=params, headers=headers)
                 except requests.RequestException as e:
                     raise RuntimeError(f"Error during API request: {e}")
         else:
             try:
-                response = requests.get(f"{self.api_url}{endpoint}", headers=self.headers)
+                response = requests.get(f"{self.api_url}{endpoint}", headers=headers)
             except requests.RequestException as e:
                 raise RuntimeError(f"Error during API request: {e}")   
             
         self.json_data = response.json()  
-         
+        self.name = endpoint.replace("/", "_")
+        self._upload_data() 
+        
         if self.is_flat(self.json_data):
             self.data_frame = pd.DataFrame(self.json_data)
             return self.data_frame
@@ -111,9 +107,6 @@ class Data:
         elif isinstance(self.json_data, dict):
             problem_data = {key: (self.json_data)[key] for key in self.json_data.keys() if isinstance((self.json_data)[key], (dict, list, tuple, set))}
             print(f"\n\nAPI Request Success, but not able to convert into DataFrame. Data is not flat.\n\n {problem_data}\n\n")
-        
-        self.name = endpoint.replace("/", "_")
-        return self.json_data
     
     
     def load(self, file_path: str | Path) -> pd.DataFrame:
@@ -123,7 +116,6 @@ class Data:
             file_path = Path(file_path)
         else:
             file_path = Path(self.file_path)
-        
 
         self.file_path= file_path
         if file_path.suffix != ".csv":
@@ -139,6 +131,28 @@ class Data:
         except Exception as e:
             raise NotImplementedError(f"Error reading CSV file {file_path}: {e}")
 
+   
+    def save(self, file_path: str | Path):
+        if not file_path:
+            if not self.file_path:
+                raise AttributeError("No file path found. Enter file_path argument to save.")
+            file_path= self.file_path
+        if self.data_frame is None:
+            if self.json_data is None:
+                raise ValueError("There is no data to save.")
+            else:
+                file_path = Path(file_path.replace(".csv", ".json"))
+                with open(file_path, "w") as outf:
+                    outf = json.dump(self.json_data, fp= outf)
+                    self.file_path= file_path
+                print("\nCould not save as .csv, saved as .json instead")
+        else:
+            try:
+                self.data_frame.to_csv(file_path)
+                self.file_path = file_path
+            except Exception as e:
+                raise IOError(f"Error saving DataFrame to CSV or JSON: {e}")
+    
     
     def flatten(self):
         if self.name == 'teams_fbs':

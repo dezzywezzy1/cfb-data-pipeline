@@ -1,7 +1,8 @@
 .env
 .venv/
-*.csv
+**/*.csv
 .vscode/
 __pycache__/
-*.json
-ingestion/
+**/*.json
+**/*.dockerignore
+ingestion/__pycache__

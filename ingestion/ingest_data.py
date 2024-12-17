@@ -68,10 +68,10 @@ def load_data():
         obj = Data()
         file_path= data_sources[source]['endpoint'].replace("/", "_")
         obj.name= file_path
-        if Path(f'ingestion/{file_path}.csv').exists():
-            obj.load(file_path=f"ingestion/{file_path}.csv")
-        elif Path(f'ingestion/{file_path}.json').exists():
-            obj.load(file_path=f"ingestion/{file_path}.json")
+        if Path(f'{file_path}.csv').exists():
+            obj.load(file_path=f"{file_path}.csv")
+        elif Path(f'{file_path}.json').exists():
+            obj.load(file_path=f"{file_path}.json")
         else:
             raise FileNotFoundError(f"File: {file_path} not found")  
         data_sources[source]['object'] = obj
@@ -84,7 +84,7 @@ def first_data_call():
             obj.request(endpoint=data_sources[source]['endpoint'], params=data_sources[source]['params'])      
             if not obj.is_flat(obj.json_data):
                 obj.flatten()
-            obj.save(f'ingestion/{data_sources[source]["endpoint"].replace("/", "_")}.csv')
+            obj.save(f'{data_sources[source]["endpoint"].replace("/", "_")}.csv')
             print(f"Successful API call for endpoint: {data_sources[source]['endpoint']} \n\n")
         except Exception as e:
             print(str(e)) 

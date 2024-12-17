@@ -1,0 +1,12 @@
+version: '3.9'
+
+services:
+  ingestion:
+    build: ./ingestion
+    container_name: ingestion_service
+    volumes:
+      - ~/.config/gcloud/cfb-pipeline-project.json:/root/.config/gcloud/cfb-pipeline.json
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /root/.config/gcloud/cfb-pipeline-project.json
+      PROJECT_ID: cfb-pipeline-project
+    command: ["python", "ingest_data.py", "new"]
