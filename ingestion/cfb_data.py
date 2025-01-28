@@ -7,9 +7,9 @@ from pathlib import Path
 import json
 from google.cloud import storage, secretmanager
 
-BUCKET_NAME = "cfb-data-bucket-jv"
-SECRET_NAME = "cfb-data-api-key"
-PROJECT_ID = "cfb-pipeline-project"
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+SECRET_NAME = os.getenv("SECRET_NAME")
+PROJECT_ID = os.getenv("PROJECT_ID")
 
 
 class Data:
@@ -63,8 +63,8 @@ class Data:
         client= storage.Client()
         bucket= client.bucket(BUCKET_NAME)
         blob= bucket.blob(f"raw_data/{self.name}.json")
-        json_string= json.dumps(self.json_data, indent=2)
-        blob.upload_from_string(json_string, content_type='application/json')
+        #json_string= json.dumps(self.json_data, indent=2)
+        blob.upload_from_string(self.json_data, content_type='application/json')
         print(f"JSON data uploaded to gs://{BUCKET_NAME}/raw_data/{self.name}.json")
         
     @timing_decorator
@@ -93,7 +93,9 @@ class Data:
             except requests.RequestException as e:
                 raise RuntimeError(f"Error during API request: {e}")   
             
-        self.json_data = response.json()  
+        self.json_data = response.json()
+        ndjson_data= '\n'.join(json.dumps(obj) for obj in self.json_data)
+        self.json_data= ndjson_data
         self.name = endpoint.replace("/", "_")
         self._upload_data() 
         
